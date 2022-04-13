@@ -11,6 +11,19 @@ plane = p.loadURDF("plane100.urdf")
 cube = p.loadURDF("cube.urdf", [0, 0, 0.5])
 
 
+distance=2
+yaw=0
+pitch=-89
+roll=0
+target=[0, 0, 1]
+near = 0.01
+far = 10000
+
+p.resetDebugVisualizerCamera(cameraDistance=distance, cameraYaw=yaw, cameraPitch=pitch, cameraTargetPosition=target)
+vm = p.computeViewMatrixFromYawPitchRoll(distance=distance, yaw=yaw, pitch=pitch, roll=roll, upAxisIndex=2, cameraTargetPosition=target)
+pm = p.computeProjectionMatrixFOV(fov = 60, aspect = 4 / 3, nearVal = near, farVal = far)
+
+
 def getRayFromTo(mouseX, mouseY):
   width, height, viewMat, projMat, cameraUp, camForward, horizon, vertical, _, _, dist, camTarget = p.getDebugVisualizerCamera(
   )
@@ -18,7 +31,7 @@ def getRayFromTo(mouseX, mouseY):
       camTarget[0] - dist * camForward[0], camTarget[1] - dist * camForward[1],
       camTarget[2] - dist * camForward[2]
   ]
-  farPlane = 10000
+  farPlane = far
   rayForward = [(camTarget[0] - camPos[0]), (camTarget[1] - camPos[1]), (camTarget[2] - camPos[2])]
   lenFwd = math.sqrt(rayForward[0] * rayForward[0] + rayForward[1] * rayForward[1] +
                      rayForward[2] * rayForward[2])
@@ -54,7 +67,7 @@ camPos = [
     camTarget[0] - dist * camForward[0], camTarget[1] - dist * camForward[1],
     camTarget[2] - dist * camForward[2]
 ]
-farPlane = 10000
+farPlane = far
 rayForward = [(camTarget[0] - camPos[0]), (camTarget[1] - camPos[1]), (camTarget[2] - camPos[2])]
 lenFwd = math.sqrt(rayForward[0] * rayForward[0] + rayForward[1] * rayForward[1] +
                    rayForward[2] * rayForward[2])
@@ -73,7 +86,7 @@ corners3D = []
 imgW = int(width / 10)
 imgH = int(height / 10)
 
-img = p.getCameraImage(imgW, imgH, renderer=p.ER_BULLET_HARDWARE_OPENGL)
+img = p.getCameraImage(imgW, imgH, vm, pm, renderer=p.ER_BULLET_HARDWARE_OPENGL)
 rgbBuffer = np.reshape(img[2], (imgH, imgW, 4))
 np.save("depth", img[3])
 dmin = np.min(img[3])
@@ -81,6 +94,10 @@ dmax = np.max(img[3])
 dnorm = (img[3]-dmin) / (dmax-dmin)
 io.imsave("depth_norm.png", (dnorm*255).astype(np.uint8))
 io.imsave("colour.png", img[2])
+
+depth = far * near / (far - (far - near) * img[3])
+print("depth range", np.min(depth), np.max(depth))
+io.imsave("depth_mm.png", (depth*1000).astype(np.uint16))
 
 # NOTE: this depth buffer's reshaping does not match the [w, h] convention for
 # OpenGL depth buffers.  See getCameraImageTest.py for an OpenGL depth buffer
@@ -124,8 +141,6 @@ for w in range(0, imgW, stepX):
     vec = rt - rf
     l = np.sqrt(np.dot(vec, vec))
     depthImg = float(depthBuffer[h, w])
-    far = 1000.
-    near = 0.01
     depth = far * near / (far - (far - near) * depthImg)
     depth /= math.cos(alpha)
     newTo = (depth / l) * vec + rf
