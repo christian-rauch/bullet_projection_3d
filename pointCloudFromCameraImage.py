@@ -3,6 +3,7 @@ import pybullet as p
 import math
 import numpy as np
 import pybullet_data
+from skimage import io
 
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -75,6 +76,12 @@ imgH = int(height / 10)
 img = p.getCameraImage(imgW, imgH, renderer=p.ER_BULLET_HARDWARE_OPENGL)
 rgbBuffer = np.reshape(img[2], (imgH, imgW, 4))
 np.save("depth", img[3])
+dmin = np.min(img[3])
+dmax = np.max(img[3])
+dnorm = (img[3]-dmin) / (dmax-dmin)
+io.imsave("depth_norm.png", (dnorm*255).astype(np.uint8))
+io.imsave("colour.png", img[2])
+
 # NOTE: this depth buffer's reshaping does not match the [w, h] convention for
 # OpenGL depth buffers.  See getCameraImageTest.py for an OpenGL depth buffer
 depthBuffer = np.reshape(img[3], [imgH, imgW])
