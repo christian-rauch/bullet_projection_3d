@@ -8,7 +8,7 @@ from skimage import io
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
 plane = p.loadURDF("plane100.urdf")
-cube = p.loadURDF("cube.urdf", [0, 0, 1])
+cube = p.loadURDF("cube.urdf", [0, 0, 0.5])
 
 
 def getRayFromTo(mouseX, mouseY):
