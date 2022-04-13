@@ -74,6 +74,7 @@ imgH = int(height / 10)
 
 img = p.getCameraImage(imgW, imgH, renderer=p.ER_BULLET_HARDWARE_OPENGL)
 rgbBuffer = np.reshape(img[2], (imgH, imgW, 4))
+np.save("depth", img[3])
 # NOTE: this depth buffer's reshaping does not match the [w, h] convention for
 # OpenGL depth buffers.  See getCameraImageTest.py for an OpenGL depth buffer
 depthBuffer = np.reshape(img[3], [imgH, imgW])
@@ -104,6 +105,7 @@ count = 0
 
 stepX = 5
 stepY = 5
+points = []
 for w in range(0, imgW, stepX):
   for h in range(0, imgH, stepY):
     count += 1
@@ -120,6 +122,7 @@ for w in range(0, imgW, stepX):
     depth = far * near / (far - (far - near) * depthImg)
     depth /= math.cos(alpha)
     newTo = (depth / l) * vec + rf
+    points.append(newTo)
     p.addUserDebugLine(rayFrom, newTo, [1, 0, 0])
     mb = p.createMultiBody(baseMass=0,
                            baseCollisionShapeIndex=collisionShapeId,
@@ -134,6 +137,7 @@ p.addUserDebugLine(corners3D[1], corners3D[2], [1, 0, 0])
 p.addUserDebugLine(corners3D[2], corners3D[3], [1, 0, 0])
 p.addUserDebugLine(corners3D[3], corners3D[0], [1, 0, 0])
 p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
+np.savetxt("points.xyz", points)
 print("ready\n")
 #p.removeBody(plane)
 #p.removeBody(cube)
