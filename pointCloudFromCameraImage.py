@@ -10,10 +10,12 @@ p.setAdditionalSearchPath(pybullet_data.getDataPath())
 plane = p.loadURDF("plane100.urdf")
 cube = p.loadURDF("cube.urdf", [0, 0, 0.5])
 
-
+w = 640
+h = 480
+fov = 40
 distance=2
 yaw=0
-pitch=-89
+pitch=-40
 roll=0
 target=[0, 0, 1]
 near = 0.01
@@ -21,7 +23,7 @@ far = 10000
 
 p.resetDebugVisualizerCamera(cameraDistance=distance, cameraYaw=yaw, cameraPitch=pitch, cameraTargetPosition=target)
 vm = p.computeViewMatrixFromYawPitchRoll(distance=distance, yaw=yaw, pitch=pitch, roll=roll, upAxisIndex=2, cameraTargetPosition=target)
-pm = p.computeProjectionMatrixFOV(fov = 60, aspect = 4 / 3, nearVal = near, farVal = far)
+pm = p.computeProjectionMatrixFOV(fov = fov, aspect = w / h, nearVal = near, farVal = far)
 
 
 def getRayFromTo(mouseX, mouseY):
@@ -88,16 +90,29 @@ imgH = int(height / 10)
 
 img = p.getCameraImage(imgW, imgH, vm, pm, renderer=p.ER_BULLET_HARDWARE_OPENGL)
 rgbBuffer = np.reshape(img[2], (imgH, imgW, 4))
-np.save("depth", img[3])
-dmin = np.min(img[3])
-dmax = np.max(img[3])
-dnorm = (img[3]-dmin) / (dmax-dmin)
-io.imsave("depth_norm.png", (dnorm*255).astype(np.uint8))
-io.imsave("colour.png", img[2])
 
-depth = far * near / (far - (far - near) * img[3])
+# render at full resolution
+img_full = p.getCameraImage(w, h, vm, pm, renderer=p.ER_BULLET_HARDWARE_OPENGL)
+np.save("depth", img_full[3])
+dmin = np.min(img_full[3])
+dmax = np.max(img_full[3])
+dnorm = (img_full[3]-dmin) / (dmax-dmin)
+io.imsave("depth_norm.png", (dnorm*255).astype(np.uint8))
+io.imsave("colour.png", img_full[2])
+depth = far * near / (far - (far - near) * img_full[3])
 print("depth range", np.min(depth), np.max(depth))
 io.imsave("depth_mm.png", (depth*1000).astype(np.uint16))
+
+# convert field-of-view to focal length
+fovs = fov * np.array([w / h, 1])
+fs = (0.5 * np.array([w, h])) / np.tan(np.deg2rad(fovs)/2)
+
+uv = np.dstack(np.meshgrid(range(w), range(h), indexing='xy'))
+uv_list = uv.reshape((-1,2))
+
+xy = (uv_list - np.array([w/2, h/2])) * depth.reshape((-1,1)) / fs
+xyz = np.concatenate((xy, depth.reshape((-1,1))), axis=1)
+np.savetxt("points_m.xyz", xyz)
 
 # NOTE: this depth buffer's reshaping does not match the [w, h] convention for
 # OpenGL depth buffers.  See getCameraImageTest.py for an OpenGL depth buffer
